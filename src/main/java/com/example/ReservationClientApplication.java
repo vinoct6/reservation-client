@@ -1,11 +1,13 @@
 package com.example;
 
+import com.netflix.hystrix.contrib.javanica.annotation.HystrixCommand;
 import com.netflix.zuul.ZuulFilter;
 import com.netflix.zuul.context.RequestContext;
 import com.netflix.zuul.exception.ZuulException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.cloud.client.circuitbreaker.EnableCircuitBreaker;
 import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
 import org.springframework.cloud.client.loadbalancer.LoadBalanced;
 import org.springframework.cloud.netflix.zuul.EnableZuulProxy;
@@ -25,8 +27,10 @@ import org.springframework.web.client.RestTemplate;
 
 import javax.servlet.http.HttpServletResponse;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.stream.Collectors;
 
+@EnableCircuitBreaker
 @EnableZuulProxy // sets up proxied routes.
 @SpringBootApplication
 @EnableDiscoveryClient
@@ -47,6 +51,8 @@ public class ReservationClientApplication {
     }
 }
 
+
+
 @RestController
 @RequestMapping("/reservations")
 class ReservationApiGatewayRestController {
@@ -54,6 +60,11 @@ class ReservationApiGatewayRestController {
     @Autowired
     private RestTemplate restTemplate;
 
+    public Collection<String> fallback(){
+        return Collections.singletonList("Downstream service is down");
+    }
+
+    @HystrixCommand(fallbackMethod = "fallback")
     @RequestMapping(method = RequestMethod.GET, value = "/names")
     public Collection<String> getNames() {
 
@@ -74,6 +85,8 @@ class ReservationApiGatewayRestController {
                 .map(Reservation::getReservationName)
                 .collect(Collectors.toList());
     }
+
+
 }
 
 /**
